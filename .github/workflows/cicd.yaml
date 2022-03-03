@@ -43,16 +43,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: prepare release
-        run: |
-          VERSION="snapshot"
-          if [[ ${{ github.ref }} == "refs/tags/v"* ]]; then
-            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-            VERSION=${VERSION#v}
-            bash steps/prepare_release.sh "$VERSION"
-          fi
-          echo "OPENMLDB_PREFIX=openmldb-$VERSION-linux" >> $GITHUB_ENV
-
       - name: enable java on release
         if: github.event_name == 'push'
         run: |
@@ -100,23 +90,6 @@ jobs:
             build/**/*.xml
             reports/*.xml
 
-      - name: install
-        if: ${{ github.event_name == 'push' }}
-        run: |
-          make install
-
-      - name: package
-        if: ${{ github.event_name == 'push' }}
-        run: |
-          tar czf ${{ env.OPENMLDB_PREFIX }}.tar.gz ${{ env.OPENMLDB_PREFIX }}/
-
-      - name: upload artifacts
-        if: ${{ github.event_name == 'push' }}
-        uses: actions/upload-artifact@v2
-        with:
-          path: openmldb-*.tar.gz
-          name: release-artifacts
-
   java-sdk:
     runs-on: ubuntu-latest
     container:
@@ -146,25 +119,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: prepare release
-        if: github.event_name == 'push'
-        run: |
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          VERSION=${VERSION#v}
-          ./java/prepare_release.sh "$VERSION"
-
       - name: build jsdk
         run: |
           make build
-
-      - name: upload linux library
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v2
-        with:
-          name: shared-library-${{ github.sha }}
-          path: |
-            java/openmldb-native/src/main/resources/libsql_jsdk.so
-            java/hybridse-native/src/main/resources/libhybridse_jsdk_core.so
 
       - name: start services
         run: |
@@ -221,13 +178,6 @@ jobs:
             .deps/
             thirdsrc
           key: ${{ runner.os }}-thirdparty-${{ hashFiles('third-party/**/CMakeLists.txt', 'third-party/**/*.cmake', 'third-party/**/*.sh') }}
-
-      - name: prepare release
-        if: github.event_name == 'push'
-        run: |
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          VERSION=${VERSION#v}
-          VARIANT_TYPE=macos ./java/prepare_release.sh "$VERSION"
 
       - uses: actions/setup-java@v2
         with:
